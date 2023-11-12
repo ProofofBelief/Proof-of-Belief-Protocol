@@ -3,68 +3,87 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
 
 contract LockContract is IERC721Receiver {
-    using Counters for Counters.Counter;
-
     struct LockedNFT {
         address owner;
+        address targetCollection;
+        address collection;
         uint256 tokenId;
         uint256 lockTimestamp;
     }
 
-    Counters.Counter private _tokenIds;
-
-    // Mapping from token ID to LockedNFT
-    mapping(uint256 => LockedNFT) private _lockedNFTs;
-
-    // ERC721 contract address
-    address private _erc721Contract;
+    mapping(address => mapping(uint256 => LockedNFT)) private _lockedNFTs;
 
     event NFTLocked(
         address indexed owner,
-        uint256 indexed tokenId,
-        uint256 lockTimestamp
+        uint256[] tokenIds,
+        uint256 lockTimestamp,
     );
-    event NFTUnlocked(address indexed owner, uint256 indexed tokenId);
+    event NFTUnlocked(address indexed owner, uint256[] tokenIds);
 
-    constructor(address erc721Contract) {
-        _erc721Contract = erc721Contract;
+    constructor() {}
+
+    function lockNFT(
+        address targetCollection,
+        address collection,
+        uint256[] memory tokenIds
+    ) external {
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            IERC721(collection).safeTransferFrom(
+                msg.sender,
+                address(this),
+                tokenIds[i]
+            );
+            _lockedNFTs[collection][tokenIds[i]] = LockedNFT({
+                owner: msg.sender,
+                targetCollection: targetCollection,
+                collection: collection,
+                tokenId: tokenIds[i],
+                lockTimestamp: block.timestamp
+            });
+        }
+        emit NFTLocked(msg.sender, tokenIds, block.timestamp);
     }
 
-    function lockNFT(uint256 tokenId) external {
-        IERC721(_erc721Contract).safeTransferFrom(
-            msg.sender,
-            address(this),
-            tokenId
-        );
-        _tokenIds.increment();
-        uint256 lockTimestamp = block.timestamp;
-        _lockedNFTs[_tokenIds.current()] = LockedNFT({
-            owner: msg.sender,
-            tokenId: tokenId,
-            lockTimestamp: lockTimestamp
-        });
-        emit NFTLocked(msg.sender, tokenId, lockTimestamp);
+    function unlockNFT(address collection, uint256[] tokenIds) external {
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            require(
+                _lockedNFTs[collection][tokenIds[i]].owner == msg.sender,
+                "Only owner can unlock"
+            );
+            IERC721(collection).safeTransferFrom(
+                address(this),
+                msg.sender,
+                tokenIds[i]
+            );
+            delete _lockedNFTs[collection][tokenIds[i]];
+        }
+        emit NFTUnlocked(msg.sender, tokenIds);
     }
 
-    function unlockNFT(uint256 tokenId) external {
-        require(_lockedNFTs[tokenId].owner != address(0), "NFT not locked");
-        IERC721(_erc721Contract).safeTransferFrom(
-            address(this),
-            _lockedNFTs[tokenId].owner,
-            tokenId
-        );
-        emit NFTUnlocked(_lockedNFTs[tokenId].owner, tokenId);
-        delete _lockedNFTs[tokenId];
+    function releaseNFT(address collection, uint256[] tokenIds, uint256 requiredLockDuration) external {
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            LockedNFT memory lockedNFT = _lockedNFTs[collection][tokenIds[i]];
+            require(
+                lockedNFT.targetCollection == msg.sender,
+                "Only target collection can release"
+            );
+            require(
+                lockedNFT.lockTimestamp + requiredLockDuration <= block.timestamp,
+                "Lock duration not met"
+            );
+            IERC721(collection).safeTransferFrom(
+                address(this),
+                lockedNFT.owner,
+                tokenIds[i]
+            );
+            _lockedNFTs[collection][tokenIds[i]].lockTimestamp += requiredLockDuration;
+        }
     }
 
-    function getLockedNFT(
-        uint256 tokenId
-    ) external view returns (address owner, uint256 lockTimestamp) {
-        require(_lockedNFTs[tokenId].owner != address(0), "NFT not locked");
-        return (_lockedNFTs[tokenId].owner, _lockedNFTs[tokenId].lockTimestamp);
+    function getLockedNFT(address collection,uint256 tokenId) external view returns (LockedNFT memory) {
+        return _lockedNFTs[collection][tokenId];
     }
 
     function onERC721Received(
