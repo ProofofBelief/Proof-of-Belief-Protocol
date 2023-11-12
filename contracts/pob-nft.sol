@@ -18,7 +18,10 @@ contract PoBNFT is ERC721 {
 
     function mintNFT(uint256 lockedNFTId, string memory content) external {
         // Ensure that the caller has locked the NFT for at least 10 minutes
-        require(_isNFTLockedLongEnough(lockedNFTId), "NFT not locked long enough");
+        require(
+            _isNFTLockedLongEnough(lockedNFTId),
+            "NFT not locked long enough"
+        );
 
         // Mint the new NFT
         uint256 tokenId = _tokenIdCounter.current();
@@ -35,7 +38,9 @@ contract PoBNFT is ERC721 {
         _tokenURIs[tokenId] = uri;
     }
 
-    function _isNFTLockedLongEnough(uint256 lockedNFTId) internal view returns (bool) {
+    function _isNFTLockedLongEnough(
+        uint256 lockedNFTId
+    ) internal view returns (bool) {
         LockContract lockContract = LockContract(_lockContractAddress);
         (, uint256 lockTimestamp) = lockContract.getLockedNFT(lockedNFTId);
 
@@ -43,7 +48,9 @@ contract PoBNFT is ERC721 {
         return (block.timestamp >= lockTimestamp + 600);
     }
 
-    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+    function tokenURI(
+        uint256 tokenId
+    ) public view override returns (string memory) {
         return _tokenURIs[tokenId];
     }
 }

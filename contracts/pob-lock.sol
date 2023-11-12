@@ -51,24 +51,20 @@ contract LockContract is IERC721Receiver {
 
     function unlockNFT(uint256 tokenId) external {
         require(_lockedNFTs[tokenId].owner != address(0), "NFT not locked");
-        IERC721(_erc721Contract).safeTransferFrom(address(this), _lockedNFTs[tokenId].owner, tokenId);
+        IERC721(_erc721Contract).safeTransferFrom(
+            address(this),
+            _lockedNFTs[tokenId].owner,
+            tokenId
+        );
         emit NFTUnlocked(_lockedNFTs[tokenId].owner, tokenId);
         delete _lockedNFTs[tokenId];
     }
 
-    function getLockedNFT(uint256 tokenId)
-        external
-        view
-        returns (
-            address owner,
-            uint256 lockTimestamp
-        )
-    {
+    function getLockedNFT(
+        uint256 tokenId
+    ) external view returns (address owner, uint256 lockTimestamp) {
         require(_lockedNFTs[tokenId].owner != address(0), "NFT not locked");
-        return (
-            _lockedNFTs[tokenId].owner,
-            _lockedNFTs[tokenId].lockTimestamp
-        );
+        return (_lockedNFTs[tokenId].owner, _lockedNFTs[tokenId].lockTimestamp);
     }
 
     function onERC721Received(
