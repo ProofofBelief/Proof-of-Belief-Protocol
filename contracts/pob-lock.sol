@@ -18,7 +18,7 @@ contract LockContract is IERC721Receiver {
     event NFTLocked(
         address indexed owner,
         uint256[] tokenIds,
-        uint256 lockTimestamp,
+        uint256 lockTimestamp
     );
     event NFTUnlocked(address indexed owner, uint256[] tokenIds);
 
@@ -27,7 +27,7 @@ contract LockContract is IERC721Receiver {
     function lockNFT(
         address targetCollection,
         address collection,
-        uint256[] memory tokenIds
+        uint256[] calldata tokenIds
     ) external {
         for (uint256 i = 0; i < tokenIds.length; i++) {
             IERC721(collection).safeTransferFrom(
@@ -46,7 +46,10 @@ contract LockContract is IERC721Receiver {
         emit NFTLocked(msg.sender, tokenIds, block.timestamp);
     }
 
-    function unlockNFT(address collection, uint256[] tokenIds) external {
+    function unlockNFT(
+        address collection,
+        uint256[] calldata tokenIds
+    ) external {
         for (uint256 i = 0; i < tokenIds.length; i++) {
             require(
                 _lockedNFTs[collection][tokenIds[i]].owner == msg.sender,
@@ -62,7 +65,11 @@ contract LockContract is IERC721Receiver {
         emit NFTUnlocked(msg.sender, tokenIds);
     }
 
-    function releaseNFT(address collection, uint256[] tokenIds, uint256 requiredLockDuration) external {
+    function releaseNFT(
+        address collection,
+        uint256[] memory tokenIds,
+        uint256 requiredLockDuration
+    ) external {
         for (uint256 i = 0; i < tokenIds.length; i++) {
             LockedNFT memory lockedNFT = _lockedNFTs[collection][tokenIds[i]];
             require(
@@ -70,7 +77,8 @@ contract LockContract is IERC721Receiver {
                 "Only target collection can release"
             );
             require(
-                lockedNFT.lockTimestamp + requiredLockDuration <= block.timestamp,
+                lockedNFT.lockTimestamp + requiredLockDuration <=
+                    block.timestamp,
                 "Lock duration not met"
             );
             IERC721(collection).safeTransferFrom(
@@ -78,11 +86,15 @@ contract LockContract is IERC721Receiver {
                 lockedNFT.owner,
                 tokenIds[i]
             );
-            _lockedNFTs[collection][tokenIds[i]].lockTimestamp += requiredLockDuration;
+            _lockedNFTs[collection][tokenIds[i]]
+                .lockTimestamp += requiredLockDuration;
         }
     }
 
-    function getLockedNFT(address collection,uint256 tokenId) external view returns (LockedNFT memory) {
+    function getLockedNFT(
+        address collection,
+        uint256 tokenId
+    ) external view returns (LockedNFT memory) {
         return _lockedNFTs[collection][tokenId];
     }
 
