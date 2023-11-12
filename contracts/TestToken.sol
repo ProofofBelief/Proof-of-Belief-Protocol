@@ -11,18 +11,18 @@ contract TestToken is ERC721 {
         _mint(to, tokenId);
     }
 
-    function mint2(
-        ILock lockContract,
-        address parentCollection,
-        uint256[] calldata tokenIds,
-        uint256 requiredLockDuration,
-        uint256 mintTokenId
-    ) external {
-        lockContract.releaseNFT(
-            parentCollection,
-            tokenIds,
-            requiredLockDuration
-        );
-        _mint(msg.sender, mintTokenId);
-    }
+    // function mint2(
+    //     ILock lockContract,
+    //     address parentCollection,
+    //     uint256[] calldata tokenIds,
+    //     uint256 requiredLockDuration,
+    //     uint256 mintTokenId
+    // ) external {
+    //     lockContract.releaseNFT(
+    //         parentCollection,
+    //         tokenIds,
+    //         requiredLockDuration
+    //     );
+    //     _mint(msg.sender, mintTokenId);
+    // }
 }

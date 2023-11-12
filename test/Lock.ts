@@ -33,8 +33,10 @@ describe("Lock", function () {
 
     const TestToken = await ethers.getContractFactory("TestToken");
     const parentCollection = await TestToken.deploy();
-    const childCollection = await TestToken.deploy();
     const parentCollectionAddress = await parentCollection.getAddress();
+
+    const PoBNFT = await ethers.getContractFactory("PoBNFT");
+    const childCollection = await PoBNFT.deploy(lockAddress, parentCollectionAddress);
     const childCollectionAddress = await childCollection.getAddress();
 
     const [user, otherUser] = await ethers.getSigners();
@@ -196,7 +198,7 @@ describe("Lock", function () {
 
       // mint child collection, reverted
       await expect(
-        childCollection.mint2(lockAddress, parentCollection, lockTokenIds, 60, childTokenId)
+        childCollection.mint(lockTokenIds, "belief")
       ).to.be.revertedWith('Lock duration not met');
     });
 
@@ -219,12 +221,15 @@ describe("Lock", function () {
         lockTokenIds, 
       );
 
-      const childTokenId = '10000';
+      expect(await childCollection.getNextRequiredLockDuration(1)).to.equal(600);
+      expect(await childCollection.getNextRequiredLockDuration(10)).to.equal(60);
 
-      // mint child collection, success
-      await time.increase(60);
-      await childCollection.mint2(lockAddress, parentCollection, lockTokenIds, 60, childTokenId, { from: user.address });
-      expect(await childCollection.ownerOf(childTokenId)).to.equal(user.address);
+      await time.increase(600);
+      await childCollection.mint(lockTokenIds, "belief");
+      expect(await childCollection.ownerOf('1')).to.equal(user.address);
+      expect(await childCollection.tokenURI('1')).to.equal('data:text/plain;base64,YmVsaWVm');
+
+      expect(await childCollection.getNextRequiredLockDuration(1)).to.equal(1200);
     });
   });
   // describe("Deployment", function () {
