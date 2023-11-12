@@ -1,27 +1,27 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/utils/Base64.sol";
 import "./ILock.sol";
 
-contract PoBNFT is ERC721 {
-    ILock private _lockContract;
-
-    address _parentCollection;
+contract PoBNFT is ERC721Enumerable {
+    ILock public _lockContract;
+    address public parentCollection;
 
     mapping(uint256 => string) private _tokenURIs;
 
-    uint256 private _totalSupply = 42000;
+    uint256 public maxSupply = 42000;
     uint256 private _nextTokenId = 1;
 
-    // TODO: modify name and symbol
     constructor(
-        ILock lockContract,
-        address parentCollection
-    ) ERC721("PoBNFT", "PB") {
-        _lockContract = lockContract;
-        _parentCollection = parentCollection;
+        string memory name_,
+        string memory symbol_,
+        ILock lockContract_,
+        address parentCollection_
+    ) ERC721(name_, symbol_) {
+        _lockContract = lockContract_;
+        parentCollection = parentCollection_;
     }
 
     function mint(
@@ -33,8 +33,7 @@ contract PoBNFT is ERC721 {
             "parentTokenIds must be greater than 0"
         );
 
-        // Mint the new NFT
-        require(_nextTokenId <= _totalSupply, "No more NFTs to mint");
+        require(_nextTokenId <= maxSupply, "No more NFTs to mint");
         uint256 tokenId = _nextTokenId;
         _nextTokenId += 1;
 
@@ -43,7 +42,7 @@ contract PoBNFT is ERC721 {
             parentTokenIds.length
         );
         _lockContract.releaseNFT(
-            _parentCollection,
+            parentCollection,
             parentTokenIds,
             requiredLockDuration
         );

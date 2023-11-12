@@ -36,7 +36,7 @@ describe("Lock", function () {
     const parentCollectionAddress = await parentCollection.getAddress();
 
     const PoBNFT = await ethers.getContractFactory("PoBNFT");
-    const childCollection = await PoBNFT.deploy(lockAddress, parentCollectionAddress);
+    const childCollection = await PoBNFT.deploy('belief', 'belief', lockAddress, parentCollectionAddress);
     const childCollectionAddress = await childCollection.getAddress();
 
     const [user, otherUser] = await ethers.getSigners();
