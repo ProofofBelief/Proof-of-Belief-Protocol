@@ -93,11 +93,6 @@ contract Lock is IERC721Receiver {
                     block.timestamp,
                 "Lock duration not met"
             );
-            IERC721(collection).safeTransferFrom(
-                address(this),
-                lockedNFT.owner,
-                tokenIds[i]
-            );
             _lockedNFTs[collection][tokenIds[i]]
                 .lockTimestamp += requiredLockDuration;
         }
