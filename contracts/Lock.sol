@@ -17,10 +17,16 @@ contract Lock is IERC721Receiver {
 
     event NFTLocked(
         address indexed owner,
+        address indexed collection,
+        address indexed targetCollection,
         uint256[] tokenIds,
         uint256 lockTimestamp
     );
-    event NFTUnlocked(address indexed owner, uint256[] tokenIds);
+    event NFTUnlocked(
+        address indexed owner,
+        address indexed collection,
+        uint256[] tokenIds
+    );
 
     constructor() {}
 
@@ -43,7 +49,13 @@ contract Lock is IERC721Receiver {
                 lockTimestamp: block.timestamp
             });
         }
-        emit NFTLocked(msg.sender, tokenIds, block.timestamp);
+        emit NFTLocked(
+            msg.sender,
+            collection,
+            targetCollection,
+            tokenIds,
+            block.timestamp
+        );
     }
 
     function unlockNFT(
@@ -62,7 +74,7 @@ contract Lock is IERC721Receiver {
             );
             delete _lockedNFTs[collection][tokenIds[i]];
         }
-        emit NFTUnlocked(msg.sender, tokenIds);
+        emit NFTUnlocked(msg.sender, collection, tokenIds);
     }
 
     function releaseNFT(

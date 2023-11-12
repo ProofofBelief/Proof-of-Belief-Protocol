@@ -26,58 +26,207 @@ describe("Lock", function () {
   //   return { lock, unlockTime, lockedAmount, owner, otherAccount };
   // }
 
-  describe('Lock', function () {
-    it('Lock', async () => {
-      const Lock = await ethers.getContractFactory("Lock");
-      const lock = await Lock.deploy();
-      const lockAddress = await lock.getAddress();
+  async function deployFixture() {
+    const Lock = await ethers.getContractFactory("Lock");
+    const lock = await Lock.deploy();
+    const lockAddress = await lock.getAddress();
 
-      const TestToken = await ethers.getContractFactory("TestToken");
-      const parentCollection = await TestToken.deploy();
-      const childCollection = await TestToken.deploy();
-      const parentCollectionAddress = await parentCollection.getAddress();
-      const childCollectionAddress = await childCollection.getAddress();
+    const TestToken = await ethers.getContractFactory("TestToken");
+    const parentCollection = await TestToken.deploy();
+    const childCollection = await TestToken.deploy();
+    const parentCollectionAddress = await parentCollection.getAddress();
+    const childCollectionAddress = await childCollection.getAddress();
 
-      const [user] = await ethers.getSigners();
+    const [user, otherUser] = await ethers.getSigners();
 
-      // mint parent collection and approve lock contract
-      const lockTokenIds = ['0'];
-      for (const tokenId of lockTokenIds) {
-        await parentCollection.mint(user.address, tokenId, { from: user.address });
-        await parentCollection.approve(lockAddress, tokenId, { from: user.address });
-      }
-      expect(await parentCollection.ownerOf('0')).to.equal(user.address);
+    const lockTokenIds = ['0'];
+    for (const tokenId of lockTokenIds) {
+      await parentCollection.mint(user.address, tokenId, { from: user.address });
+      await parentCollection.approve(lockAddress, tokenId, { from: user.address });
+    }
 
-      // lock token
+    return {
+      lock,
+      lockAddress,
+      parentCollection,
+      childCollection,
+      parentCollectionAddress,
+      childCollectionAddress,
+      user,
+      otherUser,
+      lockTokenIds,
+    }
+  }
+
+  describe('lockNFT', function () {
+    it('lock', async () => {
+      const {
+        lock,
+        lockAddress,
+        parentCollection,
+        childCollection,
+        parentCollectionAddress,
+        childCollectionAddress,
+        user,
+        lockTokenIds,
+      } = await loadFixture(deployFixture);
+
       await expect(
         lock.lockNFT(
           childCollectionAddress,
           parentCollectionAddress, 
           lockTokenIds, 
-          {from: user.address}
         )
       ).to.emit(lock, 'NFTLocked').withArgs(
         user.address,
+        parentCollectionAddress,
+        childCollectionAddress,
         lockTokenIds,
         await time.latest() + 1,
       );
-      // check token has been transferred to lock contract
-      expect(await parentCollection.ownerOf('0')).to.equal(lockAddress);
 
+      expect(await parentCollection.ownerOf('0')).to.equal(lockAddress);
+    });
+  });
+
+  describe('unlockNFT', function () {
+    it('validate owner', async () => {
+      const {
+        lock,
+        lockAddress,
+        parentCollection,
+        childCollection,
+        parentCollectionAddress,
+        childCollectionAddress,
+        user,
+        otherUser,
+        lockTokenIds,
+      } = await loadFixture(deployFixture);
+
+      await expect(lock.connect(otherUser).unlockNFT(
+        parentCollection,
+        lockTokenIds,
+      )).to.be.revertedWith('Only owner can unlock');
+    });
+
+    it('unlock', async () => {
+      const {
+        lock,
+        lockAddress,
+        parentCollection,
+        childCollection,
+        parentCollectionAddress,
+        childCollectionAddress,
+        user,
+        otherUser,
+        lockTokenIds,
+      } = await loadFixture(deployFixture);
+
+      await lock.lockNFT(
+        childCollectionAddress,
+        parentCollectionAddress, 
+        lockTokenIds, 
+      )
+
+      expect(await lock.unlockNFT(
+        parentCollection,
+        lockTokenIds,
+      )).to.emit(lock, 'NFTUnlocked').withArgs(
+        user.address,
+        parentCollectionAddress,
+        lockTokenIds,
+      );
+
+      expect(await parentCollection.ownerOf('0')).to.equal(user.address);
+    });
+  });
+
+  describe('releaseNFT', function () {
+    it('validate target collection', async () => {
+      const {
+        lock,
+        lockAddress,
+        parentCollection,
+        childCollection,
+        parentCollectionAddress,
+        childCollectionAddress,
+        user,
+        otherUser,
+        lockTokenIds,
+      } = await loadFixture(deployFixture);
+
+      await lock.lockNFT(
+        childCollectionAddress,
+        parentCollectionAddress, 
+        lockTokenIds,
+      );
+
+      await time.increase(60);
+      const childTokenId = '10000';
+
+      await expect(
+        lock.connect(otherUser).releaseNFT(
+          parentCollection,
+          lockTokenIds,
+          60,
+        )
+      ).to.be.revertedWith('Only target collection can release');
+    });
+
+    it('validate lock duraion', async () => {
+      const {
+        lock,
+        lockAddress,
+        parentCollection,
+        childCollection,
+        parentCollectionAddress,
+        childCollectionAddress,
+        user,
+        otherUser,
+        lockTokenIds,
+      } = await loadFixture(deployFixture);
+
+      await lock.lockNFT(
+        childCollectionAddress,
+        parentCollectionAddress, 
+        lockTokenIds, 
+      );
 
       const childTokenId = '10000';
+
       // mint child collection, reverted
       await expect(
-        childCollection.mint2(lockAddress, parentCollection, lockTokenIds, 60, childTokenId, { from: user.address })
+        childCollection.mint2(lockAddress, parentCollection, lockTokenIds, 60, childTokenId)
       ).to.be.revertedWith('Lock duration not met');
-      
+    });
+
+    it('release', async () => {
+      const {
+        lock,
+        lockAddress,
+        parentCollection,
+        childCollection,
+        parentCollectionAddress,
+        childCollectionAddress,
+        user,
+        otherUser,
+        lockTokenIds,
+      } = await loadFixture(deployFixture);
+
+      await lock.lockNFT(
+        childCollectionAddress,
+        parentCollectionAddress, 
+        lockTokenIds, 
+      );
+
+      const childTokenId = '10000';
+
       // mint child collection, success
       await time.increase(60);
       await childCollection.mint2(lockAddress, parentCollection, lockTokenIds, 60, childTokenId, { from: user.address });
       expect(await childCollection.ownerOf(childTokenId)).to.equal(user.address);
     });
   });
-
   // describe("Deployment", function () {
   //   it("Should set the right unlockTime", async function () {
   //     const { lock, unlockTime } = await loadFixture(deployOneYearLockFixture);
